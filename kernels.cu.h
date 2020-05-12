@@ -1,8 +1,24 @@
-#include <iostream>
 #include <cuda_runtime.h>
-#include "kernels.cu.h"
 
-/*__global__ void reduce(int *input, int *output, unsigned int n)
+__global__ void reduce0(int *g_idata, int *g_odata) {
+extern __shared__ int sdata[1024];
+// each thread loads one element from global to shared mem
+unsigned int tid = threadIdx.x;
+unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
+sdata[tid] = g_idata[i];
+__syncthreads();
+// do reduction in shared mem
+for(unsigned int s=1; s < blockDim.x; s *= 2) {
+if (tid % (2*s) == 0) {
+sdata[tid] += sdata[tid + s];
+}
+__syncthreads();
+}
+// write result for this block to global mem
+if (tid == 0) g_odata[blockIdx.x] = sdata[0];
+}
+
+__global__ void reduce(int *input, int *output, unsigned int n)
 {
     // Determine this thread's various ids
     unsigned int block_size = blockDim.x;
@@ -69,61 +85,3 @@
         output[block_id] = shared[0];
     }
 }
-*/
-
-int main(int argc, char *argv[]) {
-  int fileStarts;
-  bool get_c; bool get_w; bool get_l;
-  if (argv[1][0] != '-') {
-    get_c = true;
-    get_w = true;
-    get_l = true;
-    fileStarts = 1;
-  } else {
-    get_c = false;
-    get_w = false;
-    get_l = false;
-    for (int i = 1; i < argc; i++) {
-      if (argv[i][0] == '-') {
-        int j = 1;
-        while (argv[i][j] != '\0') {
-          switch (argv[i][j]) {
-            case 'c':
-              get_c = true;
-              break;
-            case 'w':
-              get_w = true;
-              break;
-            case 'l':
-              get_l = true;
-              break;
-            default:
-              std::cout << "Unrecognized option : -" << argv[i][j] << std::endl;
-              return 1;
-          }
-          j++;
-        }
-      } else {
-        fileStarts = i;
-        break;
-      }
-    }
-  }
-  std::cout << "c, w, l -> " << get_c << " " << get_w << " " << get_l << std::endl;
-  std::cout << "fileStarts -> " << fileStarts << " " << argv[fileStarts] << std::endl;
-    
-  //char* string = "this \n is \n a \n \n test \ntew";
-  int vals[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-  size_t mem_size = sizeof(int) * 10;
-  int* d_in;
-  int* d_out;
-  cudaMalloc((void**)&d_in, mem_size);
-  cudaMalloc((void**)&d_out, mem_size);
-  cudaMemcpy(d_in, vals, mem_size, cudaMemcpyHostToDevice);
-  reduce0<<<1, 512>>>(d_in, d_out);
-  cudaDeviceSynchronize();
-  int* h_out = (int*) malloc(sizeof(int) * 1);
-  cudaMemcpy(h_out, d_out, mem_size, cudaMemcpyDeviceToHost);
-  std::cout << h_out[0] << std::endl;
-}
-
