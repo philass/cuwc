@@ -112,14 +112,14 @@ int main(int argc, char *argv[]) {
   std::cout << "c, w, l -> " << get_c << " " << get_w << " " << get_l << std::endl;
   std::cout << "fileStarts -> " << fileStarts << " " << argv[fileStarts] << std::endl;
     
-  //char* string = "this \n is \n a \n \n test \ntew";
-  int vals[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-  size_t mem_size = sizeof(int) * 10;
-  int* d_in;
+  char string[] = "this \n is \n a \n \n test \ntew";
+  //int vals[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+  size_t mem_size = sizeof(char) * 33;
+  char* d_in;
   int* d_out;
   cudaMalloc((void**)&d_in, mem_size);
   cudaMalloc((void**)&d_out, mem_size);
-  cudaMemcpy(d_in, vals, mem_size, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_in, string, mem_size, cudaMemcpyHostToDevice);
   reduce0<<<1, 512>>>(d_in, d_out);
   cudaDeviceSynchronize();
   int* h_out = (int*) malloc(sizeof(int) * 1);
