@@ -1,5 +1,6 @@
 #include <libc.h>
 #include <iostream>
+#include <cuda_runtime.h>
 
 int main(int argc, char *argv[]) {
   int fileStarts;
@@ -42,7 +43,16 @@ int main(int argc, char *argv[]) {
   std::cout << "c, w, l -> " << get_c << " " << get_w << " " << get_l << std::endl;
   std::cout << "fileStarts -> " << fileStarts << " " << argv[fileStarts] << std::endl;
     
-  //FILE *f = fopen(
-
+  char* string = "this \n is \n a \n \n test \ntew";
+  size_t mem_size; = strlen(chararray);
+  char* d_in;
+  int* d_out;
+  cudaMalloc((void**)&d_in, mem_size);
+  cudaMalloc((void**)&d_out, mem_size);
+  cudaMemcpy(d_in, string, mem_size, cudaMemcpyHostToDevice);
+  lineCount<<<num_blocks, block_size>>>(d_in, d_out);
+  int* h_out = (int*) malloc(mem_size);
+  cudaMemcpy(h_out, d_out, mem_size, cudaMemcpyDeviceToHost);
+  std::cout << h_out[0] << std::endl;
 }
 
