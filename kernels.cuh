@@ -2,7 +2,7 @@
 
 __global__ void reduce0(char *g_idata, int *g_odata) {
   // Need to figure out if 512 is optimal
-	extern __shared__ int sdata[512];
+	extern __shared__ int sdata[1024];
 	// each thread loads one element from global to shared mem
 	unsigned int tid = threadIdx.x;
 	unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;

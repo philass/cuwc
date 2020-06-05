@@ -2,10 +2,16 @@
 #include <fstream>
 #include <string>
 #include <cuda_runtime.h>
-#include "kernels.cu.h"
+#include "kernels.cuh"
+
+
 
 int main(int argc, char *argv[]) {
   int fileStarts;
+  if (argc == 1) {
+    std::cout << "Missing arguments" << std::endl;
+    return 0;
+  }
   bool get_c; bool get_w; bool get_l;
   if (argv[1][0] != '-') {
     get_c = true;
@@ -45,13 +51,19 @@ int main(int argc, char *argv[]) {
   std::cout << "c, w, l -> " << get_c << " " << get_w << " " << get_l << std::endl;
   std::cout << "fileStarts -> " << fileStarts << " " << argv[fileStarts] << std::endl;
 
+  // READ FILE
+  FILE *fp;
   std::string firstFile = argv[fileStarts];
-  std::ifstream in(firstFile);
-  std::string contents((std::istreambuf_iterator<char>(in)), 
-  std::istreambuf_iterator<char>());
-  int file_length = contents.length();
-  const char* string = contents.c_str();
+  fp = fopen (argv[fileStarts], "rb");
+  char* string = NULL;
+  size_t len;
+  ssize_t file_length = getdelim( &string, &len, '\0', fp);
+  if (file_length != -1) {
+    std::cout << file_length << std::endl;
+    std::cout << string << std::endl;
+  }
 
+  // Allocate 
   //char string[] = "this \n is \n a \n \n test \ntew";
   //int vals[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
   size_t mem_size = sizeof(char) * file_length;
