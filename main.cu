@@ -5,6 +5,14 @@
 #include "kernels.cuh"
 
 
+int getSum(int* values, int size) {
+  int sum = 0;
+  for (int i = 0; i < size; i++) {
+    sum += values[i];
+  }
+  return sum;
+}
+
 
 int main(int argc, char *argv[]) {
   int fileStarts;
@@ -55,39 +63,47 @@ int main(int argc, char *argv[]) {
   fp = fopen (argv[fileStarts], "rb");
   char* string = NULL;
   size_t len;
-  ssize_t file_length = getdelim( &string, &len, '\0', fp);
+  int file_length = getdelim( &string, &len, '\0', fp);
   // Check if file reading failed
   if (file_length == -1) {
     std::cout << "Couldn't read file!" << std::endl;
     return 1;
   }
 
-  // Make GPU allocations
-  size_t mem_size = sizeof(char) * file_length;
-  char* d_in;
-  int* d_out;
-  cudaMalloc((void**)&d_in, mem_size);
-  cudaMalloc((void**)&d_out, mem_size);
+  int lineSum = 0;
+  int wordSum = 0;
+  if (get_l || get_w) {
+    size_t mem_size = sizeof(char) * file_length;
+    char* d_in;
+    cudaMalloc((void**)&d_in, mem_size);
+    cudaMemcpy(d_in, string, mem_size, cudaMemcpyHostToDevice);
 
-  // Copy to GPU Memory
-  cudaMemcpy(d_in, string, mem_size, cudaMemcpyHostToDevice);
-
-  // Call Kernel
-  int numBlocks = file_length / 1024 + 1;
-  reduce0<<<numBlocks, 1024 >>>(d_in, d_out);
-  cudaDeviceSynchronize();
-  
-  // Get the result in host memory
-  int* h_out = (int*) malloc(sizeof(int) * 10);
-  cudaMemcpy(h_out, d_out, mem_size, cudaMemcpyDeviceToHost);
-  
-  // Sum the results from different blocks
-  int sum;
-  for (int i = 0; i < numBlocks; i++) {
-    sum += h_out[i];
+    int numBlocks = file_length / 1024 + 1;
+    if (get_l) {
+      int* d_out_lines;
+      cudaMalloc((void**)&d_out_lines, file_length * sizeof(int));
+      reduceLines<<<numBlocks, 1024 >>>(d_in, d_out_lines, file_length);
+      cudaDeviceSynchronize();
+      int* h_out_lines = (int*) malloc(sizeof(int) * numBlocks);
+      cudaMemcpy(h_out_lines, d_out_lines, mem_size, cudaMemcpyDeviceToHost);
+      lineSum = getSum(h_out_lines, numBlocks);
+    }
+    
+    if (get_w) {
+      int* d_out_words;
+      cudaMalloc((void**)&d_out_words, file_length * sizeof(int));
+      reduceWords<<<numBlocks, 1024 >>>(d_in, d_out_words, file_length);
+      cudaDeviceSynchronize();
+      int* h_out_words = (int*) malloc(sizeof(int) * numBlocks);
+      cudaMemcpy(h_out_words, d_out_words, mem_size, cudaMemcpyDeviceToHost);
+      wordSum = getSum(h_out_words, numBlocks);
+    }
   }
-
-  // Print the results
-  if (get_l) std::cout << sum << " " << firstFile << std::endl;
+  
+  if (get_l) std::cout << lineSum << " ";
+  if (get_w) std::cout << wordSum << " ";
+  if (get_c) std::cout << file_length << " ";
+  std::cout << firstFile << std::endl;
+ 
 }
 
