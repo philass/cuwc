@@ -1,9 +1,9 @@
 #include <iostream>
 #include <fstream>
+#include <unistd.h>
 #include <string>
 #include <cuda_runtime.h>
 #include "kernels.cuh"
-
 
 int getSum(int* values, int size) {
   int sum = 0;
@@ -13,54 +13,28 @@ int getSum(int* values, int size) {
   return sum;
 }
 
-
 int main(int argc, char *argv[]) {
-  int fileStarts;
   if (argc == 1) {
     std::cout << "Missing arguments" << std::endl;
     return 0;
   }
-  bool get_c; bool get_w; bool get_l;
-  if (argv[1][0] != '-') {
-    get_c = true;
-    get_w = true;
-    get_l = true;
-    fileStarts = 1;
-  } else {
-    get_c = false;
-    get_w = false;
-    get_l = false;
-    for (int i = 1; i < argc; i++) {
-      if (argv[i][0] == '-') {
-        int j = 1;
-        while (argv[i][j] != '\0') {
-          switch (argv[i][j]) {
-            case 'c':
-              get_c = true;
-              break;
-            case 'w':
-              get_w = true;
-              break;
-            case 'l':
-              get_l = true;
-              break;
-            default:
-              std::cout << "Unrecognized option : -" << argv[i][j] << std::endl;
-              return 1;
-          }
-          j++;
-        }
-      } else {
-        fileStarts = i;
-        break;
-      }
+  int opt;
+  bool get_c = false, get_w = false, get_l = false;
+  while ((opt = getopt(argc, argv, "cwl")) != -1) {
+    switch (opt) {
+      case 'c': get_c = true; break;
+      case 'w': get_w = true; break;
+      case 'l': get_l = true; break;
+      default: 
+        fprintf(stderr, "Usage: %s [-cwl] [file...]\n", argv[0]);
+        exit(EXIT_FAILURE);
     }
   }
+  if (optind == 1) get_c = get_w = get_l = true;
 
   // READ FILE
   FILE *fp;
-  std::string firstFile = argv[fileStarts];
-  fp = fopen (argv[fileStarts], "rb");
+  fp = fopen (argv[optind], "rb");
   char* string = NULL;
   size_t len;
   int file_length = getdelim( &string, &len, '\0', fp);
@@ -99,11 +73,10 @@ int main(int argc, char *argv[]) {
       wordSum = getSum(h_out_words, numBlocks);
     }
   }
-  
   if (get_l) std::cout << lineSum << " ";
   if (get_w) std::cout << wordSum << " ";
   if (get_c) std::cout << file_length << " ";
-  std::cout << firstFile << std::endl;
- 
+  std::cout << argv[optind] << std::endl;
+  return 0;
 }
 
