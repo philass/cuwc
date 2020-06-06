@@ -48,8 +48,6 @@ int main(int argc, char *argv[]) {
       }
     }
   }
-  std::cout << "c, w, l -> " << get_c << " " << get_w << " " << get_l << std::endl;
-  std::cout << "fileStarts -> " << fileStarts << " " << argv[fileStarts] << std::endl;
 
   // READ FILE
   FILE *fp;
@@ -58,27 +56,38 @@ int main(int argc, char *argv[]) {
   char* string = NULL;
   size_t len;
   ssize_t file_length = getdelim( &string, &len, '\0', fp);
-  if (file_length != -1) {
-    std::cout << file_length << std::endl;
-    std::cout << string << std::endl;
+  // Check if file reading failed
+  if (file_length == -1) {
+    std::cout << "Couldn't read file!" << std::endl;
+    return 1;
   }
 
-  // Allocate 
-  //char string[] = "this \n is \n a \n \n test \ntew";
-  //int vals[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+  // Make GPU allocations
   size_t mem_size = sizeof(char) * file_length;
   char* d_in;
   int* d_out;
   cudaMalloc((void**)&d_in, mem_size);
   cudaMalloc((void**)&d_out, mem_size);
+
+  // Copy to GPU Memory
   cudaMemcpy(d_in, string, mem_size, cudaMemcpyHostToDevice);
-  reduce0<<<1, 512 >>>(d_in, d_out);
+
+  // Call Kernel
+  int numBlocks = file_length / 1024 + 1;
+  reduce0<<<numBlocks, 1024 >>>(d_in, d_out);
   cudaDeviceSynchronize();
+  
+  // Get the result in host memory
   int* h_out = (int*) malloc(sizeof(int) * 10);
   cudaMemcpy(h_out, d_out, mem_size, cudaMemcpyDeviceToHost);
-  std::cout << h_out[0] << " " << firstFile << std::endl;
-  std::cout << h_out[1] << std::endl;
-  std::cout << h_out[2] << std::endl;
-  std::cout << h_out[3] << std::endl;
+  
+  // Sum the results from different blocks
+  int sum;
+  for (int i = 0; i < numBlocks; i++) {
+    sum += h_out[i];
+  }
+
+  // Print the results
+  if (get_l) std::cout << sum << " " << firstFile << std::endl;
 }
 
