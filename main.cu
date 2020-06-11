@@ -55,23 +55,28 @@ int main(int argc, char *argv[]) {
     int numBlocks = file_length / 1024 + 1;
     if (get_l) {
       int* d_out_lines;
-      cudaMalloc((void**)&d_out_lines, file_length * sizeof(int));
+      cudaMalloc((void**)&d_out_lines, numBlocks * sizeof(int));
       reduceLines<<<numBlocks, 1024 >>>(d_in, d_out_lines, file_length);
       cudaDeviceSynchronize();
       int* h_out_lines = (int*) malloc(sizeof(int) * numBlocks);
-      cudaMemcpy(h_out_lines, d_out_lines, mem_size, cudaMemcpyDeviceToHost);
+      cudaMemcpy(h_out_lines, d_out_lines, sizeof(int) *  numBlocks, cudaMemcpyDeviceToHost);
       lineSum = getSum(h_out_lines, numBlocks);
+      cudaFree(d_out_lines);
+      free(h_out_lines);
     }
     
     if (get_w) {
       int* d_out_words;
-      cudaMalloc((void**)&d_out_words, file_length * sizeof(int));
+      cudaMalloc((void**)&d_out_words, numBlocks * sizeof(int));
       reduceWords<<<numBlocks, 1024 >>>(d_in, d_out_words, file_length);
       cudaDeviceSynchronize();
       int* h_out_words = (int*) malloc(sizeof(int) * numBlocks);
-      cudaMemcpy(h_out_words, d_out_words, mem_size, cudaMemcpyDeviceToHost);
+      cudaMemcpy(h_out_words, d_out_words, sizeof(int) * numBlocks, cudaMemcpyDeviceToHost);
       wordSum = getSum(h_out_words, numBlocks);
+      cudaFree(d_out_words);
+      free(h_out_words);
     }
+    cudaFree(d_in);
   }
   if (get_l) std::cout << lineSum << " ";
   if (get_w) std::cout << wordSum << " ";
